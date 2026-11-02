@@ -1,7 +1,17 @@
-import { Button } from "@/components/ui/button";
+import { HeroSlider } from "@/components/home/HeroSlider";
+import { FeaturedStudios } from "@/components/home/FeaturedStudios";
+import { BrowseCategories } from "@/components/home/BrowseCategories";
+import { HowItWorks } from "@/components/home/HowItWorks";
+import { HostGuarantee } from "@/components/home/HostGuarantee";
 
 export default function Home() {
   return (
-    <Button variant={"outline"}>ThisButton</Button>
+    <>
+      <HeroSlider />
+      <FeaturedStudios />
+      <BrowseCategories />
+      <HowItWorks />
+      <HostGuarantee />
+    </>
   );
 }
