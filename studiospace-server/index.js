@@ -29,9 +29,21 @@ export async function connectToMongoDB() {
   }
 }
 
-connectToMongoDB()
+const connectClient = await connectToMongoDB() // connecting to mongodb
+const db = connectClient.db("studio-space") // name of the database 
+
+const studiosCollections = db.collection("studios") // created studio 'collection',  in relational database it called tables
 
 
 app.get("/", (req, res)=>{
     res.send("Hellow World!")
+})
+
+// creating feature studions api endpoint:
+
+app.get('/studios', async (req, res)=>{
+  // to get the results:
+  const result = await studiosCollections.find().toArray() // getting all the result
+  res.send(result)
+
 })
