@@ -170,7 +170,7 @@ export function Navbar() {
 
                 <DropdownMenuItem
                   className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  render={<Link href="/studios/new" />}
+                  render={<Link href="/add-studio" />}
                 >
                   <PlusCircle className="h-4 w-4 text-[#c9a87c]" />
                   Add New Studio
@@ -178,7 +178,7 @@ export function Navbar() {
 
                 <DropdownMenuItem
                   className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  render={<Link href="/dashboard/listings" />}
+                  render={<Link href="/my-listings" />}
                 >
                   <Building2 className="h-4 w-4 text-[#c9a87c]" />
                   My Studio Listings
@@ -186,7 +186,7 @@ export function Navbar() {
 
                 <DropdownMenuItem
                   className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  render={<Link href="/dashboard/bookings" />}
+                  render={<Link href="/my-bookings" />}
                 >
                   <CalendarDays className="h-4 w-4 text-[#c9a87c]" />
                   My Bookings
@@ -286,7 +286,7 @@ export function Navbar() {
                     Dashboard
                   </Link>
                   <Link
-                    href="/studios/new"
+                    href="/add-studio"
                     onClick={() => setIsMobileOpen(false)}
                     className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
                   >
@@ -294,7 +294,7 @@ export function Navbar() {
                     Add New Studio
                   </Link>
                   <Link
-                    href="/dashboard/listings"
+                    href="/my-listings"
                     onClick={() => setIsMobileOpen(false)}
                     className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
                   >
@@ -302,7 +302,7 @@ export function Navbar() {
                     My Studio Listings
                   </Link>
                   <Link
-                    href="/dashboard/bookings"
+                    href="/my-bookings"
                     onClick={() => setIsMobileOpen(false)}
                     className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
                   >

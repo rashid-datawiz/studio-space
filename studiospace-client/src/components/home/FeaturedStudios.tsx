@@ -1,70 +1,37 @@
-import Link from "next/link";
-import { Star, MapPin, ArrowRight } from "lucide-react";
+"use client";
 
-const featuredStudios = [
-  {
-    id: "1",
-    title: "Aurora Photo Lab",
-    category: "Photo Studio",
-    image: "/images/studio-photo-1.jpg",
-    location: "Brooklyn, NY",
-    rating: 4.9,
-    reviews: 128,
-    price: 85,
-  },
-  {
-    id: "2",
-    title: "Echo Sound Stage",
-    category: "Sound Stage",
-    image: "/images/studio-sound-1.jpg",
-    location: "Los Angeles, CA",
-    rating: 4.8,
-    reviews: 96,
-    price: 150,
-  },
-  {
-    id: "3",
-    title: "The Podcast Loft",
-    category: "Podcast Room",
-    image: "/images/studio-podcast-1.jpg",
-    location: "Austin, TX",
-    rating: 4.9,
-    reviews: 74,
-    price: 45,
-  },
-  {
-    id: "4",
-    title: "Velvet Recording Suite",
-    category: "Music Suite",
-    image: "/images/studio-music-1.jpg",
-    location: "Nashville, TN",
-    rating: 5.0,
-    reviews: 112,
-    price: 120,
-  },
-  {
-    id: "5",
-    title: "Canvas Art Workshop",
-    category: "Art Workshop",
-    image: "/images/studio-art-1.jpg",
-    location: "Portland, OR",
-    rating: 4.7,
-    reviews: 53,
-    price: 55,
-  },
-  {
-    id: "6",
-    title: "Lumière Film Stage",
-    category: "Sound Stage",
-    image: "/images/studio-sound-2.jpg",
-    location: "Chicago, IL",
-    rating: 4.8,
-    reviews: 87,
-    price: 200,
-  },
-];
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { Star, MapPin, ArrowRight, Sparkles } from "lucide-react";
+import { Studio, fetchFeaturedStudios } from "@/lib/api";
+import { StudioGridSkeleton } from "@/components/ui/studio-skeleton";
 
 export function FeaturedStudios() {
+  const [studios, setStudios] = useState<Studio[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      try {
+        const data = await fetchFeaturedStudios(6);
+        if (!ignore) {
+          setStudios(data);
+        }
+      } catch (err) {
+        console.error("Failed to load featured studios:", err);
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   return (
     <section className="section-spacing">
       <div className="section-container">
@@ -76,7 +43,7 @@ export function FeaturedStudios() {
             </p>
             <h2 className="heading-section text-white">Featured Studios</h2>
             <p className="mt-3 max-w-md text-base text-white/50">
-              Handpicked spaces loved by creators worldwide
+              Discover top-rated and newly published creative workspaces
             </p>
           </div>
           <Link
@@ -88,67 +55,101 @@ export function FeaturedStudios() {
           </Link>
         </div>
 
-        {/* Studio Grid */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {featuredStudios.map((studio) => (
+        {/* Loading Skeleton */}
+        {loading ? (
+          <StudioGridSkeleton count={6} />
+        ) : studios.length === 0 ? (
+          /* Empty State */
+          <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center">
+            <Sparkles className="mx-auto h-8 w-8 text-[#c9a87c] mb-3" />
+            <h3 className="text-lg font-medium text-white">No Studios Listed Yet</h3>
+            <p className="mt-1 text-sm text-white/40">
+              Be the first host to list a creative space on StudioSpace.
+            </p>
             <Link
-              key={studio.id}
-              href={`/studios/${studio.id}`}
-              className="group"
+              href="/add-studio"
+              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#c9a87c] to-[#b87333] px-5 py-2.5 text-xs font-semibold text-black transition-transform hover:scale-[1.02] active:scale-[0.98]"
             >
-              <div className="hover-lift overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02]">
-                {/* Image */}
-                <div className="relative aspect-[4/3] overflow-hidden bg-neutral-900">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={studio.image}
-                    alt={studio.title}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-
-                  {/* Category Badge */}
-                  <div className="absolute top-3 left-3">
-                    <span className="inline-flex items-center rounded-full border border-white/10 bg-black/50 px-3 py-1 text-xs font-medium text-white backdrop-blur-md">
-                      {studio.category}
-                    </span>
-                  </div>
-
-                  {/* Rating Badge */}
-                  <div className="absolute top-3 right-3">
-                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/50 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md">
-                      <Star className="h-3 w-3 fill-[#c9a87c] text-[#c9a87c]" />
-                      {studio.rating}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-5">
-                  <h3 className="heading-card text-white transition-colors group-hover:text-[#c9a87c]">
-                    {studio.title}
-                  </h3>
-                  <div className="mt-2 flex items-center gap-1 text-sm text-white/40">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {studio.location}
-                  </div>
-                  <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4">
-                    <div>
-                      <span className="text-lg font-semibold text-[#c9a87c]">
-                        ${studio.price}
-                      </span>
-                      <span className="text-sm text-white/30"> / hr</span>
-                    </div>
-                    <span className="text-xs text-white/30">
-                      {studio.reviews} reviews
-                    </span>
-                  </div>
-                </div>
-              </div>
+              List Your Space
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          ))}
-        </div>
+          </div>
+        ) : (
+          /* Studio Grid */
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {studios.map((studio) => {
+              const studioId = studio.id || studio._id;
+              return (
+                <div
+                  key={studioId}
+                  className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] transition-all duration-300 hover:border-white/[0.14] hover:bg-white/[0.03] hover-lift"
+                >
+                  <Link href={`/studios/${studioId}`} className="block">
+                    {/* Image */}
+                    <div className="relative aspect-[4/3] overflow-hidden bg-neutral-900">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={studio.image || "/images/studio-photo-1.jpg"}
+                        alt={studio.title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                      {/* Category Badge */}
+                      <div className="absolute top-3 left-3">
+                        <span className="inline-flex items-center rounded-full border border-white/10 bg-black/60 px-3 py-1 text-xs font-medium text-white backdrop-blur-md">
+                          {studio.category}
+                        </span>
+                      </div>
+
+                      {/* Rating Badge */}
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md">
+                          <Star className="h-3 w-3 fill-[#c9a87c] text-[#c9a87c]" />
+                          {(studio.rating ?? 5.0).toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-5">
+                      <h3 className="heading-card text-white transition-colors group-hover:text-[#c9a87c] line-clamp-1">
+                        {studio.title}
+                      </h3>
+                      <div className="mt-2 flex items-center gap-1.5 text-sm text-white/40">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#c9a87c]/70" />
+                        <span className="truncate">{studio.location}</span>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4">
+                        <div>
+                          <span className="text-lg font-semibold text-[#c9a87c]">
+                            ${studio.hourlyRate}
+                          </span>
+                          <span className="text-sm text-white/30"> / hr</span>
+                        </div>
+                        <span className="text-xs text-white/30">
+                          {studio.reviewsCount ?? 0} reviews
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* View Details CTA Button */}
+                  <div className="px-5 pb-5 pt-0">
+                    <Link
+                      href={`/studios/${studioId}`}
+                      className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/10 bg-white/[0.03] py-2.5 text-xs font-medium text-white/80 transition-all hover:bg-white/[0.08] hover:text-white hover:border-white/20 active:scale-[0.98]"
+                    >
+                      View Details
+                      <ArrowRight className="h-3.5 w-3.5 text-[#c9a87c] transition-transform group-hover:translate-x-1" />
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
