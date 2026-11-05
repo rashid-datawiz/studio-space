@@ -10,43 +10,42 @@ app.use(cors())
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
-// Initialize MongoDB client safely
-const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+// Initialize MongoDB client safely with serverless connection pooling
 let client;
 let db;
 let studiosCollections;
 
-try {
-  if (uri) {
-    client = new MongoClient(uri);
-    await client.connect();
-    console.log("You successfully connected to MongoDB!");
-    db = client.db("studio-space");
-    studiosCollections = db.collection("studios");
-  } else {
-    console.error("MONGO_URI is missing in .env file");
+// Helper to ensure MongoDB collection is available
+async function getCollection() {
+  if (studiosCollections && client) {
+    return studiosCollections;
   }
-} catch (err) {
-  console.error("MongoDB Initial Connection Warning:", err.message);
+
+  const connectionUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (!connectionUri) {
+    throw new Error("MONGO_URI environment variable is missing. Please add MONGO_URI in your Vercel Project Settings > Environment Variables.");
+  }
+
+  if (!client) {
+    client = new MongoClient(connectionUri);
+  }
+
+  await client.connect();
+  db = client.db("studio-space");
+  studiosCollections = db.collection("studios");
+  return studiosCollections;
 }
 
 // Health check endpoint
-app.get("/", (req, res)=>{
-  res.send({ status: "ok", message: "StudioSpace Server is running!", port: PORT })
-})
-
-// Helper to ensure MongoDB collection is available
-async function getCollection() {
-  if (studiosCollections) return studiosCollections;
-  if (!client && uri) client = new MongoClient(uri);
-  if (client) {
-    await client.connect();
-    db = client.db("studio-space");
-    studiosCollections = db.collection("studios");
-    return studiosCollections;
-  }
-  throw new Error("MongoDB client could not be initialized. Check MONGO_URI.");
-}
+app.get("/", (req, res) => {
+  const hasUri = !!(process.env.MONGO_URI || process.env.MONGODB_URI);
+  res.send({
+    status: "ok",
+    message: "StudioSpace Server is running!",
+    mongoConfigured: hasUri,
+    port: PORT
+  });
+});
 
 // creating feature studios (POST)
 // http://localhost:5001/add-studio
