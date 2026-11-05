@@ -3,6 +3,7 @@ import "./globals.css";
 import { Navbar } from "@/components/shared/Navbar";
 import { Footer } from "@/components/shared/Footer";
 import { ToastProvider } from "@/components/ui/apple-toast";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 export const metadata: Metadata = {
   title: "StudioSpace — Book Creative Studios Instantly",
@@ -24,14 +25,36 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       data-scroll-behavior="smooth"
+      suppressHydrationWarning
       className="h-full antialiased dark"
     >
-      <body className="min-h-full flex flex-col bg-[#0a0a0a] text-white font-sans selection:bg-[#c9a87c] selection:text-[#0a0a0a]">
-        <ToastProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </ToastProvider>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var saved = localStorage.getItem('studiospace_theme');
+                  var theme = saved === 'light' ? 'light' : 'dark';
+                  var root = document.documentElement;
+                  root.classList.remove('light', 'dark');
+                  root.classList.add(theme);
+                  root.setAttribute('data-theme', theme);
+                  root.style.colorScheme = theme;
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
+        <ThemeProvider>
+          <ToastProvider>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
