@@ -72,7 +72,7 @@ app.post('/add-studio', async (req, res)=>{
 app.get('/featured-studios', async (req, res) => {
   try {
     const col = await getCollection();
-    const result = await col.find().limit(6).toArray();
+    const result = await col.find().sort({ _id: -1 }).limit(6).toArray();
     res.send(result);
   } catch (error) {
     res.status(500).send({ error: error.message });
@@ -83,7 +83,7 @@ app.get('/studios', async (req, res)=>{
   try {
     const col = await getCollection();
     const limit = req.query.limit ? parseInt(req.query.limit) : 0;
-    let cursor = col.find();
+    let cursor = col.find().sort({ _id: -1 });
     if (limit > 0) cursor = cursor.limit(limit);
     const result = await cursor.toArray();
     res.send(result);
@@ -155,3 +155,5 @@ app.delete('/studios/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`StudioSpace backend server is running on http://localhost:${PORT}`);
 });
+
+export default app;
