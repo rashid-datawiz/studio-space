@@ -19,9 +19,11 @@ import {
   User,
   Shield,
   Loader2,
+  AlertCircle,
+  Radio,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createStudio, uploadImageToImgBB } from "@/lib/api";
+import { createStudio, uploadImageToImgBB, checkBackendHealth } from "@/lib/api";
 import { toast } from "@/components/ui/apple-toast";
 import { useSession } from "@/lib/auth-client";
 
@@ -93,6 +95,11 @@ export default function AddStudioPage() {
   // UI States
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    checkBackendHealth().then((status) => setBackendOnline(status));
+  }, []);
 
   // Toggle amenity selection
   const toggleAmenity = (amenity: string) => {
@@ -214,6 +221,42 @@ export default function AddStudioPage() {
             podcasters, and artists.
           </p>
         </div>
+
+        {/* Backend Connectivity Status Alert */}
+        {backendOnline === false && (
+          <div className="mb-8 flex items-start gap-3.5 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4.5 text-xs text-amber-200 backdrop-blur-xl">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-400 mt-0.5" />
+            <div className="flex-1 space-y-1">
+              <p className="font-semibold text-amber-300 text-sm">
+                Backend Server is Offline (Port 5001)
+              </p>
+              <p className="text-amber-200/80 leading-relaxed">
+                Could not connect to <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-amber-300">http://localhost:5001</code>.
+                To save listings directly to MongoDB, open your terminal in the backend directory and run:
+              </p>
+              <div className="mt-2 rounded-xl bg-black/60 p-2.5 font-mono text-[11px] text-white/90 border border-white/10 select-all">
+                cd &quot;../studiospace-server&quot; &amp;&amp; npm start
+              </div>
+            </div>
+          </div>
+        )}
+
+        {backendOnline === true && (
+          <div className="mb-8 flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-300 backdrop-blur-xl">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="font-medium text-emerald-200">
+                Connected to MongoDB Server (<code className="font-mono text-[11px]">http://localhost:5001</code>)
+              </span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
+              <Radio className="h-3 w-3 animate-pulse" /> Live
+            </span>
+          </div>
+        )}
 
         {/* Main Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -426,7 +469,7 @@ export default function AddStudioPage() {
                   </span>
                   <input
                     type="url"
-                    placeholder="https://... or /images/studio-photo-1.jpg"
+                    placeholder="https://... or /images/hero-1.jpg"
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
                     className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#c9a87c]/40"

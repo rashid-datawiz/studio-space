@@ -19,7 +19,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Studio, fetchStudios } from "@/lib/api";
+import { Studio, fetchStudios, getDiverseFallbackImage } from "@/lib/api";
 import { StudioGridSkeleton } from "@/components/ui/studio-skeleton";
 
 const CATEGORY_ITEMS = [
@@ -217,8 +217,13 @@ function StudiosList() {
                   <div className="relative aspect-[4/3] overflow-hidden bg-neutral-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={studio.image}
+                      src={studio.image || studio.imageUrl || getDiverseFallbackImage(studio.category)}
                       alt={studio.title}
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.onerror = null;
+                        target.src = getDiverseFallbackImage(studio.category);
+                      }}
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       loading="lazy"
                     />

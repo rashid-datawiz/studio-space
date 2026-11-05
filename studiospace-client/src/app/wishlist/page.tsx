@@ -11,7 +11,7 @@ import {
   Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Studio, fetchStudios } from "@/lib/api";
+import { Studio, fetchStudios, getDiverseFallbackImage } from "@/lib/api";
 import { StudioCardSkeleton } from "@/components/ui/studio-skeleton";
 
 export default function WishlistPage() {
@@ -103,8 +103,13 @@ export default function WishlistPage() {
                     <div className="relative aspect-[4/3] overflow-hidden bg-neutral-900">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={studio.image}
+                        src={studio.image || studio.imageUrl || getDiverseFallbackImage(studio.category)}
                         alt={studio.title}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.onerror = null;
+                          target.src = getDiverseFallbackImage(studio.category);
+                        }}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />

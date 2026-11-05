@@ -17,7 +17,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Studio, fetchMyListings, deleteStudio } from "@/lib/api";
+import { Studio, fetchMyListings, deleteStudio, getDiverseFallbackImage } from "@/lib/api";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { TableRowSkeleton } from "@/components/ui/studio-skeleton";
 import { toast } from "@/components/ui/apple-toast";
@@ -242,8 +242,13 @@ export default function MyListingsPage() {
                   <div className="relative aspect-[16/10] overflow-hidden bg-neutral-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={studio.image}
+                      src={studio.image || studio.imageUrl || getDiverseFallbackImage(studio.category)}
                       alt={studio.title}
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.onerror = null;
+                        target.src = getDiverseFallbackImage(studio.category);
+                      }}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
@@ -333,8 +338,13 @@ export default function MyListingsPage() {
                           <div className="h-12 w-16 shrink-0 overflow-hidden rounded-xl bg-neutral-900 border border-white/10">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={studio.image}
+                              src={studio.image || studio.imageUrl || getDiverseFallbackImage(studio.category)}
                               alt={studio.title}
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                target.onerror = null;
+                                target.src = getDiverseFallbackImage(studio.category);
+                              }}
                               className="h-full w-full object-cover"
                             />
                           </div>

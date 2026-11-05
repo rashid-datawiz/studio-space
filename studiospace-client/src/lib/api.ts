@@ -10,6 +10,7 @@ export interface Studio {
   squareFeet?: number;
   location: string;
   image: string;
+  imageUrl?: string;
   gallery?: string[];
   amenities: string[];
   overview: string;
@@ -55,11 +56,11 @@ const initialStudios: Studio[] = [
     maxCapacity: 15,
     squareFeet: 1800,
     location: "Brooklyn, NY",
-    image: "/images/studio-photo-1.jpg",
+    image: "/images/hero-1.jpg",
     gallery: [
-      "/images/studio-photo-1.jpg",
       "/images/hero-1.jpg",
       "/images/studio-photo-2.jpg",
+      "/images/hero-2.jpg",
     ],
     amenities: [
       "White Cyc Wall",
@@ -186,7 +187,7 @@ const initialStudios: Studio[] = [
     image: "/images/studio-art-1.jpg",
     gallery: [
       "/images/studio-art-1.jpg",
-      "/images/studio-photo-1.jpg",
+      "/images/hero-1.jpg",
     ],
     amenities: [
       "Natural Skylights",
@@ -245,7 +246,7 @@ const initialBookings: Booking[] = [
     id: "b-1",
     studioId: "1",
     studioTitle: "Aurora Photo Lab",
-    studioImage: "/images/studio-photo-1.jpg",
+    studioImage: "/images/hero-1.jpg",
     studioLocation: "Brooklyn, NY",
     hourlyRate: 85,
     userEmail: "alex@creatorstudio.io",
@@ -297,15 +298,183 @@ const initialBookings: Booking[] = [
   },
 ];
 
+/* ── Studio Normalizer & Image Resolver ───────────────────────────── */
+const DIVERSE_FALLBACK_IMAGES = [
+  "/images/hero-1.jpg",
+  "/images/studio-sound-1.jpg",
+  "/images/studio-podcast-1.jpg",
+  "/images/studio-photo-2.jpg",
+  "/images/studio-sound-2.jpg",
+  "/images/studio-music-1.jpg",
+  "/images/studio-music-2.jpg",
+  "/images/studio-art-1.jpg",
+  "/images/hero-2.jpg",
+  "/images/hero-3.jpg",
+];
+
+export function getDiverseFallbackImage(category = "", index = 0): string {
+  const cat = (category || "").toLowerCase();
+  if (cat.includes("photo")) {
+    return index % 2 === 0 ? "/images/hero-1.jpg" : "/images/studio-photo-2.jpg";
+  }
+  if (cat.includes("film") || cat.includes("stage")) {
+    return index % 2 === 0 ? "/images/studio-sound-1.jpg" : "/images/hero-3.jpg";
+  }
+  if (cat.includes("podcast")) {
+    return index % 2 === 0 ? "/images/studio-podcast-1.jpg" : "/images/hero-2.jpg";
+  }
+  if (cat.includes("music") || cat.includes("sound")) {
+    return index % 2 === 0 ? "/images/studio-music-1.jpg" : "/images/studio-music-2.jpg";
+  }
+  if (cat.includes("art") || cat.includes("workshop") || cat.includes("gallery")) {
+    return index % 2 === 0 ? "/images/studio-art-1.jpg" : "/images/hero-1.jpg";
+  }
+  return DIVERSE_FALLBACK_IMAGES[index % DIVERSE_FALLBACK_IMAGES.length];
+}
+
+// Normalizes any raw document from MongoDB into a uniform Studio object
+export function normalizeStudio(raw: unknown, index = 0): Studio {
+  if (!raw || typeof raw !== "object") {
+    return initialStudios[index % initialStudios.length];
+  }
+
+  const r = raw as Record<string, unknown>;
+
+  // 1. Resolve ID
+  const rawId = r._id || r.id;
+  const id = rawId ? String(rawId) : `studio-${Date.now()}-${index}`;
+  const _id = r._id ? String(r._id) : undefined;
+
+  // 2. Resolve image - check all possible MongoDB property names
+  let resolvedImage = "";
+
+  const candidateFields = [
+    r.image,
+    r.imageUrl,
+    r.image_url,
+    r.img,
+    r.imgUrl,
+    r.img_url,
+    r.photo,
+    r.photoUrl,
+    r.photoURL,
+    r.photo_url,
+    r.picture,
+    r.coverImage,
+    r.cover_image,
+    r.cover,
+    r.thumbnail,
+    r.studioImage,
+  ];
+
+  for (const c of candidateFields) {
+    if (typeof c === "string" && c.trim().length > 0) {
+      resolvedImage = c.trim();
+      break;
+    }
+    if (c && typeof c === "object") {
+      const obj = c as Record<string, unknown>;
+      const nested = obj.url || obj.display_url || obj.secure_url || obj.src;
+      if (typeof nested === "string" && nested.trim().length > 0) {
+        resolvedImage = nested.trim();
+        break;
+      }
+    }
+  }
+
+  // Check gallery or images arrays if image still not found
+  if (!resolvedImage && Array.isArray(r.gallery) && r.gallery.length > 0) {
+    const first = r.gallery[0];
+    if (typeof first === "string" && first.trim().length > 0) {
+      resolvedImage = first.trim();
+    } else if (first && typeof first === "object") {
+      const u = (first as Record<string, unknown>).url;
+      if (typeof u === "string" && u.trim().length > 0) resolvedImage = u.trim();
+    }
+  }
+
+  if (!resolvedImage && Array.isArray(r.images) && r.images.length > 0) {
+    const first = r.images[0];
+    if (typeof first === "string" && first.trim().length > 0) {
+      resolvedImage = first.trim();
+    } else if (first && typeof first === "object") {
+      const u = (first as Record<string, unknown>).url;
+      if (typeof u === "string" && u.trim().length > 0) resolvedImage = u.trim();
+    }
+  }
+
+  const category = String(r.category || r.type || "Photo Studio");
+
+  // Fallback to distinct, category-appropriate image if no image found or if pointing to legacy image
+  if (!resolvedImage || resolvedImage === "/images/studio-photo-1.jpg") {
+    resolvedImage = getDiverseFallbackImage(category, index);
+  }
+
+  // Build normalized gallery array
+  const gallery: string[] = [];
+  if (Array.isArray(r.gallery)) {
+    for (const g of r.gallery) {
+      if (typeof g === "string" && g.trim()) gallery.push(g.trim());
+      else if (g && typeof g === "object") {
+        const u = (g as Record<string, unknown>).url;
+        if (typeof u === "string" && u.trim()) gallery.push(u.trim());
+      }
+    }
+  }
+  if (Array.isArray(r.images)) {
+    for (const g of r.images) {
+      if (typeof g === "string" && g.trim()) gallery.push(g.trim());
+      else if (g && typeof g === "object") {
+        const u = (g as Record<string, unknown>).url;
+        if (typeof u === "string" && u.trim()) gallery.push(u.trim());
+      }
+    }
+  }
+  if (gallery.length === 0 && resolvedImage) {
+    gallery.push(resolvedImage);
+  }
+
+  return {
+    _id,
+    id,
+    title: String(r.title || r.name || "Creative Studio"),
+    category,
+    location: String(r.location || r.city || "New York, NY"),
+    hourlyRate: Number(r.hourlyRate || r.price || r.rate || 0),
+    securityDeposit: Number(r.securityDeposit || r.deposit || 100),
+    maxCapacity: Number(r.maxCapacity || r.capacity || 10),
+    squareFeet: Number(r.squareFeet || r.size || 1200),
+    rating: Number(r.rating || 5.0),
+    reviewsCount: Number(r.reviewsCount || 0),
+    image: resolvedImage,
+    imageUrl: resolvedImage,
+    gallery,
+    amenities: Array.isArray(r.amenities)
+      ? r.amenities.map(String)
+      : typeof r.amenities === "string"
+      ? (r.amenities as string).split(",").map((a) => a.trim()).filter(Boolean)
+      : ["High-Speed Wi-Fi", "Central AC"],
+    overview: String(r.overview || r.description || "A professional creative workspace."),
+    ownerName: String(r.ownerName || r.hostName || "Alex Rivera"),
+    ownerEmail: String(r.ownerEmail || r.hostEmail || "alex@creatorstudio.io"),
+    ownerAvatar: String(r.ownerAvatar || r.hostAvatar || "/images/avatar-alex.jpg"),
+    createdAt: String(r.createdAt || new Date().toISOString()),
+  };
+}
+
 /* ── Local Storage Helper ────────────────────────────────────────── */
 const STORAGE_KEYS = {
-  STUDIOS: "studiospace_studios_v1",
-  BOOKINGS: "studiospace_bookings_v1",
+  STUDIOS: "studiospace_studios_v2",
+  BOOKINGS: "studiospace_bookings_v2",
 };
 
 function getLocalStudios(): Studio[] {
   if (typeof window === "undefined") return initialStudios;
   try {
+    // Purge old corrupted v1 cache if found
+    if (localStorage.getItem("studiospace_studios_v1")) {
+      localStorage.removeItem("studiospace_studios_v1");
+    }
     const raw = localStorage.getItem(STORAGE_KEYS.STUDIOS);
     if (!raw) {
       localStorage.setItem(
@@ -314,7 +483,11 @@ function getLocalStudios(): Studio[] {
       );
       return initialStudios;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((item, idx) => normalizeStudio(item, idx));
+    }
+    return initialStudios;
   } catch {
     return initialStudios;
   }
@@ -325,7 +498,25 @@ function saveLocalStudios(studios: Studio[]) {
   try {
     localStorage.setItem(STORAGE_KEYS.STUDIOS, JSON.stringify(studios));
   } catch (e) {
-    console.error("Failed to save to localStorage", e);
+    console.warn("Storage quota warning, sanitizing studio cache...", e);
+    try {
+      // Strip oversized base64 images from cached items to prevent QuotaExceededError
+      const sanitized = studios.slice(0, 25).map((s, idx) => ({
+        ...s,
+        image:
+          s.image && s.image.startsWith("data:") && s.image.length > 100000
+            ? getDiverseFallbackImage(s.category, idx)
+            : s.image,
+        gallery: (s.gallery || []).slice(0, 3).map((g) =>
+          g && g.startsWith("data:") && g.length > 100000
+            ? getDiverseFallbackImage(s.category, idx)
+            : g
+        ),
+      }));
+      localStorage.setItem(STORAGE_KEYS.STUDIOS, JSON.stringify(sanitized));
+    } catch (retryErr) {
+      console.error("Failed to save to localStorage after sanitizing:", retryErr);
+    }
   }
 }
 
@@ -380,16 +571,12 @@ export async function fetchStudios(filters?: {
       try {
         const res = await fetch(url, {
           cache: "no-store",
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(12000),
         });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
-            return data.map((item: Studio & { _id?: string }) => ({
-              ...item,
-              id: item._id || item.id,
-              hourlyRate: Number(item.hourlyRate || 0),
-            }));
+            return data.map((item, idx) => normalizeStudio(item, idx));
           }
         }
       } catch {
@@ -448,18 +635,12 @@ export async function fetchFeaturedStudios(limit = 6): Promise<Studio[]> {
       try {
         const res = await fetch(url, {
           cache: "no-store",
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(12000),
         });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
-            return data.slice(0, limit).map((item: Studio & { _id?: string }) => ({
-              ...item,
-              id: item._id || item.id,
-              hourlyRate: Number(item.hourlyRate || 0),
-              rating: item.rating ?? 5.0,
-              reviewsCount: item.reviewsCount ?? 0,
-            }));
+            return data.slice(0, limit).map((item, idx) => normalizeStudio(item, idx));
           }
         }
       } catch {
@@ -488,29 +669,12 @@ export async function fetchStudioById(id: string): Promise<Studio | null> {
       try {
         const res = await fetch(url, {
           cache: "no-store",
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(12000),
         });
         if (res.ok) {
           const data = await res.json();
           if (data && (data._id || data.id)) {
-            const idVal = String(data._id || data.id);
-            return {
-              ...data,
-              id: idVal,
-              _id: data._id ? String(data._id) : undefined,
-              hourlyRate: Number(data.hourlyRate || 0),
-              securityDeposit: Number(data.securityDeposit || 100),
-              maxCapacity: Number(data.maxCapacity || 10),
-              squareFeet: Number(data.squareFeet || 1200),
-              rating: Number(data.rating || 5.0),
-              reviewsCount: Number(data.reviewsCount || 0),
-              amenities: Array.isArray(data.amenities) ? data.amenities : [],
-              gallery:
-                Array.isArray(data.gallery) && data.gallery.length > 0
-                  ? data.gallery
-                  : [data.image || "/images/studio-photo-1.jpg"],
-              image: data.image || "/images/studio-photo-1.jpg",
-            };
+            return normalizeStudio(data);
           }
         }
       } catch {
@@ -536,8 +700,15 @@ export interface MongoInsertResponse {
 export async function createStudio(
   data: Omit<Studio, "id" | "createdAt">
 ): Promise<{ studio: Studio; insertedId?: string; acknowledged?: boolean }> {
+  const resolvedImg = data.image || data.imageUrl || "";
   const newStudio: Studio = {
     ...data,
+    image: resolvedImg,
+    imageUrl: resolvedImg,
+    gallery:
+      Array.isArray(data.gallery) && data.gallery.length > 0
+        ? data.gallery
+        : [resolvedImg],
     id: `studio-${Date.now()}`,
     rating: 5.0,
     reviewsCount: 1,
@@ -572,6 +743,12 @@ export async function createStudio(
         insertedId,
         acknowledged: result.acknowledged ?? true,
       };
+    } else {
+      const errText = await res.text();
+      console.error(
+        `Backend /add-studio failed (HTTP ${res.status}):`,
+        errText
+      );
     }
   } catch (err) {
     console.warn("Could not reach backend /add-studio, saving locally:", err);
@@ -579,7 +756,7 @@ export async function createStudio(
 
   // 2. Fallback to local state if backend is offline
   const list = getLocalStudios();
-  const updated = [newStudio, ...list];
+  const updated = [newStudio, ...list.filter((s) => s.id !== newStudio.id)];
   saveLocalStudios(updated);
   return { studio: newStudio };
 }
@@ -696,18 +873,12 @@ export async function fetchMyListings(ownerEmail: string): Promise<Studio[]> {
       try {
         const res = await fetch(url, {
           cache: "no-store",
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(12000),
         });
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
-            return data.map((item: Studio & { _id?: string }) => ({
-              ...item,
-              id: item._id || item.id,
-              hourlyRate: Number(item.hourlyRate || 0),
-              rating: Number(item.rating || 5.0),
-              reviewsCount: Number(item.reviewsCount || 0),
-            }));
+            return data.map((item, idx) => normalizeStudio(item, idx));
           }
         }
       } catch {
@@ -826,7 +997,59 @@ export async function cancelBooking(bookingId: string): Promise<boolean> {
   return true;
 }
 
-/* ── ImgBB Image Upload Service ──────────────────────────────────── */
+/* ── ImgBB Image Upload Service & Client-Side Compression ─────────── */
+
+export async function compressImageFile(
+  file: File,
+  maxWidth = 1200,
+  quality = 0.8
+): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(getDiverseFallbackImage("photo", 0));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve((event.target?.result as string) || getDiverseFallbackImage("photo", 0));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/jpeg", quality);
+          resolve(compressed);
+        } catch {
+          resolve((event.target?.result as string) || getDiverseFallbackImage("photo", 0));
+        }
+      };
+      img.onerror = () => {
+        resolve((event.target?.result as string) || getDiverseFallbackImage("photo", 0));
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      resolve(getDiverseFallbackImage("photo", 0));
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export async function uploadImageToImgBB(
   file: File,
@@ -835,19 +1058,16 @@ export async function uploadImageToImgBB(
   const key =
     apiKey ||
     process.env.NEXT_PUBLIC_IMGBB_API_KEY ||
-    "2d02c896937e0da16a81b2da96a2fa59"; // Free public community key or user provided
+    "2d02c896937e0da16a81b2da96a2fa59";
 
   const formData = new FormData();
   formData.append("image", file);
 
   try {
-    const res = await fetch(
-      `https://api.imgbb.com/1/upload?key=${key}`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, {
+      method: "POST",
+      body: formData,
+    });
 
     if (res.ok) {
       const json = await res.json();
@@ -856,14 +1076,22 @@ export async function uploadImageToImgBB(
       }
     }
   } catch (err) {
-    console.warn("ImgBB direct upload failed, creating local object preview", err);
+    console.warn("ImgBB upload failed, falling back to client-side compressed preview:", err);
   }
 
-  // Fallback: create base64 string so image is permanently persistent locally
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  // Fallback: compress image so it never exceeds localStorage quota (~80KB vs 5MB)
+  return compressImageFile(file, 1200, 0.8);
+}
+
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/`, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(2500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

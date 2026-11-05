@@ -20,7 +20,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Studio, fetchStudioById } from "@/lib/api";
+import { Studio, fetchStudioById, getDiverseFallbackImage } from "@/lib/api";
 import { BookingModal } from "@/components/studios/BookingModal";
 import { StudioDetailSkeleton } from "@/components/ui/studio-skeleton";
 import { toast } from "@/components/ui/apple-toast";
@@ -84,10 +84,11 @@ export default function StudioDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const heroImage = studio.image || studio.imageUrl || getDiverseFallbackImage(studio.category);
   const galleryImages =
     studio.gallery && studio.gallery.length > 0
       ? studio.gallery
-      : [studio.image];
+      : [heroImage];
 
   const handleShare = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {

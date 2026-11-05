@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Star, MapPin, ArrowRight, Sparkles } from "lucide-react";
-import { Studio, fetchFeaturedStudios } from "@/lib/api";
+import { Studio, fetchFeaturedStudios, getDiverseFallbackImage } from "@/lib/api";
 import { StudioGridSkeleton } from "@/components/ui/studio-skeleton";
 
 export function FeaturedStudios() {
@@ -89,8 +89,13 @@ export function FeaturedStudios() {
                     <div className="relative aspect-[4/3] overflow-hidden bg-neutral-900">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={studio.image || "/images/studio-photo-1.jpg"}
+                        src={studio.image || studio.imageUrl || getDiverseFallbackImage(studio.category)}
                         alt={studio.title}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          target.onerror = null;
+                          target.src = getDiverseFallbackImage(studio.category);
+                        }}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"
                       />
