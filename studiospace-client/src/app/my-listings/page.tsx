@@ -56,8 +56,12 @@ export default function MyListingsPage() {
     setIsDeleting(true);
 
     try {
-      await deleteStudio(deleteTarget.id);
-      setStudios((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      const targetId = deleteTarget.id || deleteTarget._id;
+      if (!targetId) return;
+      await deleteStudio(targetId);
+      setStudios((prev) =>
+        prev.filter((s) => s.id !== targetId && s._id !== targetId)
+      );
       toast.success(
         "Studio Deleted",
         `"${deleteTarget.title}" was permanently removed from listings.`

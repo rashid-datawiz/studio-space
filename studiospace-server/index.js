@@ -1,6 +1,6 @@
 import express from "express"
 import cors from "cors"
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import 'dotenv/config'
 
 
@@ -61,3 +61,59 @@ app.get('/studios', async (req, res)=>{
   res.send(result)
 
 })
+
+// Getting single Studio using ID:
+
+// http://localhost:5001/studios/:id
+app.get('/studios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Guard against invalid 24-hex string crashes
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ error: 'Invalid studio ID format' });
+    }
+
+    // 2. Fetch document from MongoDB
+    const result = await studiosCollections.findOne({ _id: new ObjectId(id) });
+
+    // 3. Return 404 if document doesn't exist
+    if (!result) {
+      return res.status(404).send({ error: 'Studio not found' });
+    }
+
+    // 4. Send document back to client
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// 1. Get Listings for a specific user (My Listings)
+// http://localhost:5001/my-listings/:email
+app.get('/my-listings/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const query = { ownerEmail: email };
+    const result = await studiosCollections.find(query).toArray();
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+// 2. Delete a Studio listing
+// http://localhost:5001/studios/:id
+app.delete('/studios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Validate MongoDB ObjectId format
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ error: 'Invalid studio ID format' });
+    }
+    const query = { _id: new ObjectId(id) };
+    const result = await studiosCollections.deleteOne(query);
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});

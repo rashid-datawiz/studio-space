@@ -493,10 +493,23 @@ export async function fetchStudioById(id: string): Promise<Studio | null> {
         if (res.ok) {
           const data = await res.json();
           if (data && (data._id || data.id)) {
+            const idVal = String(data._id || data.id);
             return {
               ...data,
-              id: data._id || data.id,
+              id: idVal,
+              _id: data._id ? String(data._id) : undefined,
               hourlyRate: Number(data.hourlyRate || 0),
+              securityDeposit: Number(data.securityDeposit || 100),
+              maxCapacity: Number(data.maxCapacity || 10),
+              squareFeet: Number(data.squareFeet || 1200),
+              rating: Number(data.rating || 5.0),
+              reviewsCount: Number(data.reviewsCount || 0),
+              amenities: Array.isArray(data.amenities) ? data.amenities : [],
+              gallery:
+                Array.isArray(data.gallery) && data.gallery.length > 0
+                  ? data.gallery
+                  : [data.image || "/images/studio-photo-1.jpg"],
+              image: data.image || "/images/studio-photo-1.jpg",
             };
           }
         }
@@ -577,26 +590,40 @@ export async function updateStudio(
 ): Promise<Studio> {
   // 1. Try backend
   try {
-    const res = await fetch(`${API_BASE_URL}/api/studios/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-      signal: AbortSignal.timeout(4000),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      const studioObj = {
-        ...updated,
-        id: updated._id || updated.id || id,
-      };
-      const list = getLocalStudios();
-      saveLocalStudios(
-        list.map((s) => (s.id === id || s._id === id ? studioObj : s))
-      );
-      return studioObj;
+    const endpoints = [
+      `${API_BASE_URL}/studios/${id}`,
+      `${API_BASE_URL}/api/studios/${id}`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+          signal: AbortSignal.timeout(4000),
+        });
+        if (res.ok) {
+          const result = await res.json().catch(() => ({}));
+          console.log("MongoDB updateOne result:", result);
+          const studioObj: Studio = {
+            ...(result.title ? result : data),
+            id: result._id || result.id || id,
+            _id: result._id || id,
+          } as Studio;
+
+          const list = getLocalStudios();
+          saveLocalStudios(
+            list.map((s) => (s.id === id || s._id === id ? { ...s, ...studioObj } : s))
+          );
+          return studioObj;
+        }
+      } catch {
+        // try next endpoint
+      }
     }
-  } catch {
-    // Fallback
+  } catch (err) {
+    console.warn("Could not update studio on backend, updating locally:", err);
   }
 
   // 2. Fallback
@@ -620,17 +647,31 @@ export async function updateStudio(
 export async function deleteStudio(id: string): Promise<boolean> {
   // 1. Try backend
   try {
-    const res = await fetch(`${API_BASE_URL}/api/studios/${id}`, {
-      method: "DELETE",
-      signal: AbortSignal.timeout(4000),
-    });
-    if (res.ok) {
-      const list = getLocalStudios();
-      saveLocalStudios(list.filter((s) => s.id !== id && s._id !== id));
-      return true;
+    const endpoints = [
+      `${API_BASE_URL}/studios/${id}`,
+      `${API_BASE_URL}/delete-studio/${id}`,
+      `${API_BASE_URL}/api/studios/${id}`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          method: "DELETE",
+          signal: AbortSignal.timeout(4000),
+        });
+        if (res.ok) {
+          const result = await res.json().catch(() => ({}));
+          console.log("MongoDB deleteOne result:", result);
+          const list = getLocalStudios();
+          saveLocalStudios(list.filter((s) => s.id !== id && s._id !== id));
+          return true;
+        }
+      } catch {
+        // try next endpoint
+      }
     }
-  } catch {
-    // Fallback
+  } catch (err) {
+    console.warn("Could not delete studio from backend, removing locally:", err);
   }
 
   // 2. Fallback
@@ -642,27 +683,45 @@ export async function deleteStudio(id: string): Promise<boolean> {
 export async function fetchMyListings(ownerEmail: string): Promise<Studio[]> {
   // 1. Try server
   try {
-    const res = await fetch(
-      `${API_BASE_URL}/api/studios/user/${encodeURIComponent(ownerEmail)}`,
-      { cache: "no-store", signal: AbortSignal.timeout(3000) }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        return data.map((item: Studio & { _id?: string }) => ({
-          ...item,
-          id: item._id || item.id,
-        }));
+    const encoded = encodeURIComponent(ownerEmail);
+    const endpoints = [
+      `${API_BASE_URL}/my-listings/${encoded}`,
+      `${API_BASE_URL}/studios/user/${encoded}`,
+      `${API_BASE_URL}/my-studios/${encoded}`,
+      `${API_BASE_URL}/studios?ownerEmail=${encoded}`,
+      `${API_BASE_URL}/api/studios/user/${encoded}`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(3000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            return data.map((item: Studio & { _id?: string }) => ({
+              ...item,
+              id: item._id || item.id,
+              hourlyRate: Number(item.hourlyRate || 0),
+              rating: Number(item.rating || 5.0),
+              reviewsCount: Number(item.reviewsCount || 0),
+            }));
+          }
+        }
+      } catch {
+        // try next endpoint
       }
     }
-  } catch {
-    // Fallback
+  } catch (err) {
+    console.warn("Could not fetch user listings from backend:", err);
   }
 
   // 2. Fallback
   const list = getLocalStudios();
   return list.filter(
-    (s) => s.ownerEmail.toLowerCase() === ownerEmail.toLowerCase()
+    (s) => (s.ownerEmail || "").toLowerCase() === ownerEmail.toLowerCase()
   );
 }
 
