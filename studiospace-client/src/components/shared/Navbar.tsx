@@ -25,6 +25,8 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { authClient, useSession } from "@/lib/auth-client";
+import { toast } from "@/components/ui/apple-toast";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -38,15 +40,29 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  // Authenticated state demonstration toggle (supports both Unauthenticated & Authenticated deliverables)
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Authenticated state from Better Auth with demo toggle fallback
+  const { data: session } = useSession();
+  const currentUser = session?.user;
+  const [mockAuthed, setMockAuthed] = useState(false);
 
-  // Mock authenticated user details
+  const isAuthenticated = Boolean(currentUser) || mockAuthed;
+
   const user = {
-    name: "Alex Rivera",
-    email: "alex@creatorstudio.io",
-    avatar: "/images/avatar-alex.jpg",
+    name: currentUser?.name || "Alex Rivera",
+    email: currentUser?.email || "alex@creatorstudio.io",
+    avatar: currentUser?.image || "/images/avatar-alex.jpg",
     role: "Studio Host & Creator",
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut();
+      toast.success("Logged Out", "You have signed out successfully.");
+    } catch {
+      // ignore
+    }
+    setMockAuthed(false);
+    setIsMobileOpen(false);
   };
 
   useEffect(() => {
@@ -106,7 +122,7 @@ export function Navbar() {
         <div className="hidden items-center gap-3 md:flex">
           {/* Subtle state switcher preview pill for the reviewer */}
           <button
-            onClick={() => setIsAuthenticated(!isAuthenticated)}
+            onClick={() => setMockAuthed(!mockAuthed)}
             title="Click to toggle Authenticated / Unauthenticated view"
             className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[11px] font-medium text-white/40 transition-colors hover:border-[#c9a87c]/30 hover:text-[#c9a87c]"
           >
@@ -195,7 +211,7 @@ export function Navbar() {
                 <DropdownMenuSeparator className="my-1 bg-white/[0.06]" />
 
                 <DropdownMenuItem
-                  onClick={() => setIsAuthenticated(false)}
+                  onClick={handleLogout}
                   className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
                 >
                   <LogOut className="h-4 w-4" />
@@ -310,11 +326,8 @@ export function Navbar() {
                     My Bookings
                   </Link>
                   <button
-                    onClick={() => {
-                      setIsAuthenticated(false);
-                      setIsMobileOpen(false);
-                    }}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-rose-400 hover:bg-rose-500/10"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-rose-400 hover:bg-rose-500/10 cursor-pointer"
                   >
                     <LogOut className="h-4 w-4" />
                     Logout
