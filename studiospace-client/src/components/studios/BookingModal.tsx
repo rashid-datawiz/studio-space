@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Studio, createBooking } from "@/lib/api";
 import { toast } from "@/components/ui/apple-toast";
+import { useSession } from "@/lib/auth-client";
 
 interface BookingModalProps {
   studio: Studio;
@@ -31,6 +32,7 @@ const timeSlots = [
 
 export function BookingModal({ studio, isOpen, onClose }: BookingModalProps) {
   const router = useRouter();
+  const { data: session } = useSession();
 
   // Booking form state
   const tomorrow = new Date();
@@ -56,14 +58,17 @@ export function BookingModal({ studio, isOpen, onClose }: BookingModalProps) {
     setIsSubmitting(true);
 
     try {
+      const userEmail = session?.user?.email || "alex@creatorstudio.io";
+      const userName = session?.user?.name || "Alex Rivera";
+
       await createBooking({
         studioId: studio.id,
         studioTitle: studio.title,
         studioImage: studio.image,
         studioLocation: studio.location,
         hourlyRate: studio.hourlyRate,
-        userEmail: "alex@creatorstudio.io",
-        userName: "Alex Rivera",
+        userEmail,
+        userName,
         bookingDate,
         startTime,
         durationHours,
@@ -133,6 +138,16 @@ export function BookingModal({ studio, isOpen, onClose }: BookingModalProps) {
             </p>
           </div>
         </div>
+
+        {/* User Identity Info */}
+        {session?.user && (
+          <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-2.5 text-xs">
+            <span className="text-white/40">Reserving As:</span>
+            <span className="font-medium text-white truncate max-w-[240px]">
+              {session.user.name || "Creator"} ({session.user.email})
+            </span>
+          </div>
+        )}
 
         {/* Booking Form */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-6">

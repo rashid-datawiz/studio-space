@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   Clock,
@@ -13,17 +14,21 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock3,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Booking, fetchMyBookings, cancelBooking } from "@/lib/api";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { TableRowSkeleton } from "@/components/ui/studio-skeleton";
 import { toast } from "@/components/ui/apple-toast";
+import { useSession } from "@/lib/auth-client";
 
 type FilterStatus = "All" | "Pending" | "Confirmed" | "Completed" | "Cancelled";
 
 export default function MyBookingsPage() {
-  const userEmail = "alex@creatorstudio.io";
+  const router = useRouter();
+  const { data: session, isPending: isSessionPending } = useSession();
+  const currentUser = session?.user;
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +38,22 @@ export default function MyBookingsPage() {
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
+  // Authentication Guard: Redirect non-authenticated users to login
   useEffect(() => {
+    if (!isSessionPending && !currentUser) {
+      toast.info(
+        "Authentication Required",
+        "Please log in to view and manage your studio reservations."
+      );
+      router.push("/login?callbackUrl=/my-bookings");
+    }
+  }, [isSessionPending, currentUser, router]);
+
+  const userEmail = currentUser?.email || "";
+
+  useEffect(() => {
+    if (!userEmail) return;
+
     let ignore = false;
     async function load() {
       try {
@@ -119,6 +139,41 @@ export default function MyBookingsPage() {
         return null;
     }
   };
+
+  if (isSessionPending) {
+    return (
+      <div className="pt-24 pb-28 min-h-screen">
+        <div className="section-container space-y-6">
+          <div className="h-10 w-48 rounded-xl bg-white/[0.05] animate-pulse" />
+          <div className="space-y-4 pt-4">
+            <TableRowSkeleton />
+            <TableRowSkeleton />
+            <TableRowSkeleton />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="pt-32 pb-28 min-h-screen flex flex-col items-center justify-center text-center px-4">
+        <div className="h-14 w-14 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-[#c9a87c] mb-4">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h2 className="text-2xl font-semibold text-white">Sign In Required</h2>
+        <p className="mt-2 text-sm text-white/50 max-w-sm">
+          Please log in to your creator account to inspect and manage your studio reservations.
+        </p>
+        <Link
+          href="/login?callbackUrl=/my-bookings"
+          className="mt-6 rounded-xl bg-gradient-to-r from-[#c9a87c] to-[#b87333] px-6 py-3 text-xs font-semibold text-black shadow-lg shadow-[#b87333]/20 hover:opacity-90 transition-all"
+        >
+          Sign In to Access Bookings
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-24 pb-28">

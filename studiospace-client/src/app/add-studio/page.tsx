@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { createStudio, uploadImageToImgBB } from "@/lib/api";
 import { toast } from "@/components/ui/apple-toast";
+import { useSession } from "@/lib/auth-client";
 
 const STUDIO_CATEGORIES = [
   "Photo Studio",
@@ -54,6 +55,19 @@ const PRESET_AMENITIES = [
 
 export default function AddStudioPage() {
   const router = useRouter();
+  const { data: session, isPending: isSessionPending } = useSession();
+  const currentUser = session?.user;
+
+  // Protect route
+  useEffect(() => {
+    if (!isSessionPending && !currentUser) {
+      toast.info(
+        "Authentication Required",
+        "Please log in or register to publish a studio listing."
+      );
+      router.push("/login?callbackUrl=/add-studio");
+    }
+  }, [isSessionPending, currentUser, router]);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -71,9 +85,10 @@ export default function AddStudioPage() {
   const [customAmenity, setCustomAmenity] = useState("");
   const [overview, setOverview] = useState("");
 
-  // Host Info (Read-only)
-  const hostName = "Alex Rivera";
-  const hostEmail = "alex@creatorstudio.io";
+  // Host Info (Read-only, dynamically bound to authenticated user)
+  const hostName = currentUser?.name || "Alex Rivera";
+  const hostEmail = currentUser?.email || "alex@creatorstudio.io";
+  const hostAvatar = currentUser?.image || "/images/avatar-alex.jpg";
 
   // UI States
   const [isUploading, setIsUploading] = useState(false);
@@ -148,7 +163,7 @@ export default function AddStudioPage() {
           "A meticulously designed creative environment outfitted for professional productions.",
         ownerName: hostName,
         ownerEmail: hostEmail,
-        ownerAvatar: "/images/avatar-alex.jpg",
+        ownerAvatar: hostAvatar,
       });
 
       if (response.insertedId) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import {
   Star,
   MapPin,
@@ -24,6 +24,7 @@ import { Studio, fetchStudioById } from "@/lib/api";
 import { BookingModal } from "@/components/studios/BookingModal";
 import { StudioDetailSkeleton } from "@/components/ui/studio-skeleton";
 import { toast } from "@/components/ui/apple-toast";
+import { useSession } from "@/lib/auth-client";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,12 +33,29 @@ interface PageProps {
 export default function StudioDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const studioId = resolvedParams.id;
+  const router = useRouter();
+
+  // Better Auth Session
+  const { data: session } = useSession();
+  const currentUser = session?.user;
 
   const [studio, setStudio] = useState<Studio | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
+  const handleBookNow = () => {
+    if (!currentUser) {
+      toast.info(
+        "Sign In Required",
+        "Please log in or create an account to book this workspace."
+      );
+      router.push(`/login?callbackUrl=/studios/${studioId}`);
+      return;
+    }
+    setIsBookingOpen(true);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -424,17 +442,23 @@ export default function StudioDetailPage({ params }: PageProps) {
             {/* Primary Action Button */}
             <Button
               size="lg"
-              onClick={() => setIsBookingOpen(true)}
-              className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#c9a87c] to-[#b87333] font-semibold text-black shadow-xl shadow-[#b87333]/25 hover:opacity-90 active:scale-95 transition-all"
+              onClick={handleBookNow}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#c9a87c] to-[#b87333] font-semibold text-black shadow-xl shadow-[#b87333]/25 hover:opacity-90 active:scale-95 transition-all cursor-pointer"
             >
               <Calendar className="h-4 w-4 mr-2" />
               Book Workspace Now
             </Button>
 
-            <div className="flex items-center justify-center gap-2 text-[11px] text-white/40 text-center">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#c9a87c]" />
-              <span>You won&apos;t be charged until confirmed</span>
-            </div>
+            {!currentUser ? (
+              <p className="text-[11px] text-[#c9a87c]/90 text-center font-medium">
+                Log in or register to reserve this workspace
+              </p>
+            ) : (
+              <div className="flex items-center justify-center gap-2 text-[11px] text-white/40 text-center">
+                <ShieldCheck className="h-3.5 w-3.5 text-[#c9a87c]" />
+                <span>You won&apos;t be charged until confirmed</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

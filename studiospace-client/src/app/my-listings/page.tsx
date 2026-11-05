@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   Plus,
@@ -13,15 +14,32 @@ import {
   Sparkles,
   LayoutGrid,
   Table as TableIcon,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Studio, fetchMyListings, deleteStudio } from "@/lib/api";
 import { ConfirmModal } from "@/components/shared/ConfirmModal";
 import { TableRowSkeleton } from "@/components/ui/studio-skeleton";
 import { toast } from "@/components/ui/apple-toast";
+import { useSession } from "@/lib/auth-client";
 
 export default function MyListingsPage() {
-  const userEmail = "alex@creatorstudio.io";
+  const router = useRouter();
+  const { data: session, isPending: isSessionPending } = useSession();
+  const currentUser = session?.user;
+
+  // Protect route
+  useEffect(() => {
+    if (!isSessionPending && !currentUser) {
+      toast.info(
+        "Authentication Required",
+        "Please log in to manage your studio listings."
+      );
+      router.push("/login?callbackUrl=/my-listings");
+    }
+  }, [isSessionPending, currentUser, router]);
+
+  const userEmail = currentUser?.email || "alex@creatorstudio.io";
 
   const [studios, setStudios] = useState<Studio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +103,40 @@ export default function MyListingsPage() {
           studios.reduce((acc, curr) => acc + curr.hourlyRate, 0) / totalListings
         )
       : 0;
+
+  if (isSessionPending) {
+    return (
+      <div className="pt-24 pb-28 min-h-screen">
+        <div className="section-container space-y-6">
+          <div className="h-10 w-48 rounded-xl bg-white/[0.05] animate-pulse" />
+          <div className="space-y-4 pt-4">
+            <TableRowSkeleton />
+            <TableRowSkeleton />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="pt-32 pb-28 min-h-screen flex flex-col items-center justify-center text-center px-4">
+        <div className="h-14 w-14 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-[#c9a87c] mb-4">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h2 className="text-2xl font-semibold text-white">Sign In Required</h2>
+        <p className="mt-2 text-sm text-white/50 max-w-sm">
+          Please log in to your host account to manage and update your studio listings.
+        </p>
+        <Link
+          href="/login?callbackUrl=/my-listings"
+          className="mt-6 rounded-xl bg-gradient-to-r from-[#c9a87c] to-[#b87333] px-6 py-3 text-xs font-semibold text-black shadow-lg shadow-[#b87333]/20 hover:opacity-90 transition-all"
+        >
+          Sign In to Access Listings
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-24 pb-28">
