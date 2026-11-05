@@ -54,7 +54,13 @@ app.post('/add-studio', async (req, res)=>{
   try {
     const col = await getCollection();
     const studiosData = req.body;
-    const result = await col.insertOne(studiosData);
+    const img = studiosData.image || studiosData.imageUrl || studiosData.photo || "";
+    const payload = {
+      ...studiosData,
+      image: img,
+      imageUrl: img,
+    };
+    const result = await col.insertOne(payload);
     res.send(result);
   } catch (error) {
     console.error("Error in /add-studio:", error);
@@ -62,11 +68,24 @@ app.post('/add-studio', async (req, res)=>{
   }
 })
 
-// creating feature studions api endpoint:
+// creating feature studios api endpoint:
+app.get('/featured-studios', async (req, res) => {
+  try {
+    const col = await getCollection();
+    const result = await col.find().limit(6).toArray();
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
 app.get('/studios', async (req, res)=>{
   try {
     const col = await getCollection();
-    const result = await col.find().toArray();
+    const limit = req.query.limit ? parseInt(req.query.limit) : 0;
+    let cursor = col.find();
+    if (limit > 0) cursor = cursor.limit(limit);
+    const result = await cursor.toArray();
     res.send(result);
   } catch (error) {
     res.status(500).send({ error: error.message });
