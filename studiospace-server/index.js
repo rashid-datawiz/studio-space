@@ -3,67 +3,77 @@ import cors from "cors"
 import { MongoClient, ObjectId } from 'mongodb';
 import 'dotenv/config'
 
-
-
-const PORT = 5001
+const PORT = process.env.PORT || 5001
 
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ extended: true, limit: '50mb' }))
 
-app.listen(PORT, ()=>{
-    console.log(`server is running on port ${PORT}`)
-})
+// Initialize MongoDB client safely
+const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+let client;
+let db;
+let studiosCollections;
 
-
-
-const client = new MongoClient(process.env.MONGO_URI);
-
-export async function connectToMongoDB() {
-  try {
+try {
+  if (uri) {
+    client = new MongoClient(uri);
     await client.connect();
     console.log("You successfully connected to MongoDB!");
-    return client;
-  } catch (err) {
-    console.dir(err);
+    db = client.db("studio-space");
+    studiosCollections = db.collection("studios");
+  } else {
+    console.error("MONGO_URI is missing in .env file");
   }
+} catch (err) {
+  console.error("MongoDB Initial Connection Warning:", err.message);
 }
 
-const connectClient = await connectToMongoDB() // connecting to mongodb
-const db = connectClient.db("studio-space") // name of the database 
-
-const studiosCollections = db.collection("studios") // created studio 'collection',  in relational database it called tables
-
+// Health check endpoint
 app.get("/", (req, res)=>{
-    res.send("Hellow World!")
+  res.send({ status: "ok", message: "StudioSpace Server is running!", port: PORT })
 })
 
+// Helper to ensure MongoDB collection is available
+async function getCollection() {
+  if (studiosCollections) return studiosCollections;
+  if (!client && uri) client = new MongoClient(uri);
+  if (client) {
+    await client.connect();
+    db = client.db("studio-space");
+    studiosCollections = db.collection("studios");
+    return studiosCollections;
+  }
+  throw new Error("MongoDB client could not be initialized. Check MONGO_URI.");
+}
+
 // creating feature studios (POST)
-// Data will be send from frontend, received in the bacend and we will insert it in backend
 // http://localhost:5001/add-studio
 app.post('/add-studio', async (req, res)=>{
-  //step-1:  Retrive the data from the request body:
-  const studiosData = req.body
-
-  // Step-2: insert the data into mongodb collection
-  const result = await studiosCollections.insertOne(studiosData)
-  // step-3: send a response back to client
-  res.send(result)
-
+  try {
+    const col = await getCollection();
+    const studiosData = req.body;
+    const result = await col.insertOne(studiosData);
+    res.send(result);
+  } catch (error) {
+    console.error("Error in /add-studio:", error);
+    res.status(500).send({ error: error.message });
+  }
 })
 
 // creating feature studions api endpoint:
-
 app.get('/studios', async (req, res)=>{
-  // to get the results:
-  const result = await studiosCollections.find().toArray() // getting all the result
-  res.send(result)
-
+  try {
+    const col = await getCollection();
+    const result = await col.find().toArray();
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
 })
 
 // Getting single Studio using ID:
-
 // http://localhost:5001/studios/:id
 app.get('/studios/:id', async (req, res) => {
   try {
@@ -74,8 +84,9 @@ app.get('/studios/:id', async (req, res) => {
       return res.status(400).send({ error: 'Invalid studio ID format' });
     }
 
+    const col = await getCollection();
     // 2. Fetch document from MongoDB
-    const result = await studiosCollections.findOne({ _id: new ObjectId(id) });
+    const result = await col.findOne({ _id: new ObjectId(id) });
 
     // 3. Return 404 if document doesn't exist
     if (!result) {
@@ -93,27 +104,35 @@ app.get('/studios/:id', async (req, res) => {
 // http://localhost:5001/my-listings/:email
 app.get('/my-listings/:email', async (req, res) => {
   try {
+    const col = await getCollection();
     const { email } = req.params;
     const query = { ownerEmail: email };
-    const result = await studiosCollections.find(query).toArray();
+    const result = await col.find(query).toArray();
     res.send(result);
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
 });
+
 // 2. Delete a Studio listing
 // http://localhost:5001/studios/:id
 app.delete('/studios/:id', async (req, res) => {
   try {
+    const col = await getCollection();
     const { id } = req.params;
     // Validate MongoDB ObjectId format
     if (!ObjectId.isValid(id)) {
       return res.status(400).send({ error: 'Invalid studio ID format' });
     }
     const query = { _id: new ObjectId(id) };
-    const result = await studiosCollections.deleteOne(query);
+    const result = await col.deleteOne(query);
     res.send(result);
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
+});
+
+// Start Express server
+app.listen(PORT, () => {
+  console.log(`StudioSpace backend server is running on http://localhost:${PORT}`);
 });
