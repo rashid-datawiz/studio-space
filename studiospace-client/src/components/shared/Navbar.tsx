@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
   X,
   Aperture,
-  LayoutDashboard,
   PlusCircle,
   Building2,
   CalendarDays,
+  Heart,
   LogOut,
   ChevronDown,
+  Moon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,7 +23,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -37,6 +37,7 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -49,20 +50,24 @@ export function Navbar() {
 
   const user = {
     name: currentUser?.name || "Alex Rivera",
-    email: currentUser?.email || "alex@creatorstudio.io",
+    email: currentUser?.email || "alex.creator@studiospace.io",
     avatar: currentUser?.image || "/images/avatar-alex.jpg",
     role: "Studio Host & Creator",
   };
 
+  const firstName = user.name.split(" ")[0] || "Alex";
+
   const handleLogout = async () => {
     try {
       await authClient.signOut();
-      toast.success("Logged Out", "You have signed out successfully.");
+      toast.success("Signed Out", "You have been signed out successfully.");
     } catch {
       // ignore
     }
     setMockAuthed(false);
     setIsMobileOpen(false);
+    router.push("/login");
+    router.refresh();
   };
 
   useEffect(() => {
@@ -147,78 +152,107 @@ export function Navbar() {
               </Button>
             </div>
           ) : (
-            /* Authenticated State: User Avatar + Name + Dropdown Menu */
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className="group flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] py-1 pr-3 pl-1.5 transition-all hover:border-[#c9a87c]/30 hover:bg-white/[0.06] outline-none"
+            /* Authenticated State: Theme Toggle + User Avatar Pill + Dropdown Menu */
+            <div className="flex items-center gap-2.5">
+              {/* Moon Theme Toggle Button matching design */}
+              <button
+                type="button"
+                onClick={() => {
+                  toast.info(
+                    "Theme Notice",
+                    "StudioSpace operates in high-contrast cinematic dark mode."
+                  );
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white cursor-pointer"
+                title="Theme Settings"
               >
-                <Avatar className="h-7 w-7 ring-1 ring-[#c9a87c]/50">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="bg-[#c9a87c]/20 text-[10px] text-[#c9a87c]">
-                    AR
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs font-medium text-white/90 group-hover:text-white">
-                  {user.name}
-                </span>
-                <ChevronDown className="h-3 w-3 text-white/40 transition-transform group-data-popup-open:rotate-180" />
-              </DropdownMenuTrigger>
+                <Moon className="h-4 w-4" />
+              </button>
 
-              <DropdownMenuContent
-                align="end"
-                className="w-56 rounded-2xl border border-white/[0.08] bg-[#121212]/95 p-1.5 backdrop-blur-2xl shadow-2xl"
-              >
-                <DropdownMenuLabel className="px-3 py-2">
-                  <div className="text-xs font-semibold text-white">
-                    {user.name}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="group flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.03] py-1 pr-3 pl-1.5 transition-all hover:border-[#c9a87c]/40 hover:bg-white/[0.06] outline-none cursor-pointer"
+                >
+                  <Avatar className="h-7 w-7 ring-1 ring-[#c9a87c]/60">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback className="bg-[#c9a87c]/20 text-[10px] text-[#c9a87c]">
+                      {user.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs font-medium text-white/90 group-hover:text-white">
+                    {firstName}
+                  </span>
+                  <ChevronDown className="h-3 w-3 text-white/40 transition-transform group-data-popup-open:rotate-180" />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  align="end"
+                  className="w-60 rounded-3xl border border-white/[0.10] bg-[#121212]/98 p-2 backdrop-blur-3xl shadow-2xl space-y-0.5 animate-in fade-in-50 zoom-in-95"
+                >
+                  {/* Header: Signed in as */}
+                  <div className="px-3.5 py-2.5">
+                    <span className="block text-[11px] font-normal text-white/40">
+                      Signed in as
+                    </span>
+                    <span className="block text-sm font-semibold text-white tracking-tight mt-0.5">
+                      {user.name}
+                    </span>
+                    <span className="block text-xs font-normal text-white/50 truncate mt-0.5">
+                      {user.email}
+                    </span>
                   </div>
-                  <div className="text-[11px] text-white/40">{user.email}</div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator className="my-1 bg-white/[0.06]" />
 
-                <DropdownMenuItem
-                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  render={<Link href="/dashboard" />}
-                >
-                  <LayoutDashboard className="h-4 w-4 text-[#c9a87c]" />
-                  Dashboard
-                </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1.5 bg-white/[0.08]" />
 
-                <DropdownMenuItem
-                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  render={<Link href="/add-studio" />}
-                >
-                  <PlusCircle className="h-4 w-4 text-[#c9a87c]" />
-                  Add New Studio
-                </DropdownMenuItem>
+                  {/* 1. Add New Studio */}
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs text-[#c9a87c] font-medium transition-colors hover:bg-white/[0.06] hover:text-[#e0c299]"
+                    render={<Link href="/add-studio" />}
+                  >
+                    <PlusCircle className="h-4 w-4 text-[#c9a87c] shrink-0" />
+                    <span>Add New Studio</span>
+                  </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  render={<Link href="/my-listings" />}
-                >
-                  <Building2 className="h-4 w-4 text-[#c9a87c]" />
-                  My Studio Listings
-                </DropdownMenuItem>
+                  {/* 2. My Studio Listings */}
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white"
+                    render={<Link href="/my-listings" />}
+                  >
+                    <Building2 className="h-4 w-4 text-white/50 shrink-0" />
+                    <span>My Studio Listings</span>
+                  </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-white/80 transition-colors hover:bg-white/[0.08] hover:text-white"
-                  render={<Link href="/my-bookings" />}
-                >
-                  <CalendarDays className="h-4 w-4 text-[#c9a87c]" />
-                  My Bookings
-                </DropdownMenuItem>
+                  {/* 3. My Bookings */}
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white"
+                    render={<Link href="/my-bookings" />}
+                  >
+                    <CalendarDays className="h-4 w-4 text-white/50 shrink-0" />
+                    <span>My Bookings</span>
+                  </DropdownMenuItem>
 
-                <DropdownMenuSeparator className="my-1 bg-white/[0.06]" />
+                  {/* 4. Saved Wishlist */}
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs text-white/80 transition-colors hover:bg-white/[0.06] hover:text-white"
+                    render={<Link href="/wishlist" />}
+                  >
+                    <Heart className="h-4 w-4 text-white/50 shrink-0" />
+                    <span>Saved Wishlist</span>
+                  </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-rose-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuSeparator className="my-1.5 bg-white/[0.08]" />
+
+                  {/* 5. Sign Out */}
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs text-rose-400 font-medium transition-colors hover:bg-rose-500/10 hover:text-rose-300"
+                  >
+                    <LogOut className="h-4 w-4 text-rose-400 shrink-0" />
+                    <span>Sign Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
 
@@ -294,17 +328,9 @@ export function Navbar() {
                 </div>
                 <div className="space-y-1 pt-2">
                   <Link
-                    href="/dashboard"
-                    onClick={() => setIsMobileOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
-                  >
-                    <LayoutDashboard className="h-4 w-4 text-[#c9a87c]" />
-                    Dashboard
-                  </Link>
-                  <Link
                     href="/add-studio"
                     onClick={() => setIsMobileOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[#c9a87c] font-medium hover:bg-white/[0.06]"
                   >
                     <PlusCircle className="h-4 w-4 text-[#c9a87c]" />
                     Add New Studio
@@ -314,7 +340,7 @@ export function Navbar() {
                     onClick={() => setIsMobileOpen(false)}
                     className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
                   >
-                    <Building2 className="h-4 w-4 text-[#c9a87c]" />
+                    <Building2 className="h-4 w-4 text-white/50" />
                     My Studio Listings
                   </Link>
                   <Link
@@ -322,15 +348,23 @@ export function Navbar() {
                     onClick={() => setIsMobileOpen(false)}
                     className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
                   >
-                    <CalendarDays className="h-4 w-4 text-[#c9a87c]" />
+                    <CalendarDays className="h-4 w-4 text-white/50" />
                     My Bookings
+                  </Link>
+                  <Link
+                    href="/wishlist"
+                    onClick={() => setIsMobileOpen(false)}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white"
+                  >
+                    <Heart className="h-4 w-4 text-white/50" />
+                    Saved Wishlist
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-rose-400 font-medium hover:bg-rose-500/10 cursor-pointer"
                   >
-                    <LogOut className="h-4 w-4" />
-                    Logout
+                    <LogOut className="h-4 w-4 text-rose-400" />
+                    Sign Out
                   </button>
                 </div>
               </div>
